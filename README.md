@@ -4,7 +4,7 @@
 A lightweight android library that allows to you custom fast forward/rewind animation behaviours like netflix.
 
 ## GIF
-<img src=""/>
+<img src="https://github.com/ertugrulkaragoz/SuperForwardRewind/blob/master/GIF/SuperForwardRewind.gif"/>
 
 ## Design Credits
 All design and inspiration credits belongs to [Netflix](https://play.google.com/store/apps/details?id=com.netflix.mediaclient&hl=tr).
