@@ -1,4 +1,4 @@
-# SuperForwardRewindView
+# SuperForwardView
 
 ## About
 A lightweight android library that allows to you custom fast forward/rewind animation behaviours like netflix.
@@ -29,7 +29,7 @@ dependencies {
 
 ## Usage
 
-- Add `SuperForwardRewindView` in your layout:
+- Add `SuperForwardView` in your layout:
 ```xml
  Width / height must be equal to 2. Otherwise it will not work properly.
  <me.ertugrul.lib.Forward
@@ -81,7 +81,7 @@ dependencies {
         app:r_arrowSize="10dp" />
 ```
 
--   Get notified when `SuperForwardRewindView` animation starts or ends by callback:
+-   Get notified when `SuperForwardView` animation starts or ends by callback:
 ```kotlin
 	forward.onAnimationStart = {
             Log.e("onAnimationStart", "started")
