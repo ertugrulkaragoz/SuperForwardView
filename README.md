@@ -1,7 +1,7 @@
 # SuperForwardView
 
 ## About
-A lightweight android library that allows to you custom fast forward/rewind animation behaviours like netflix.
+A lightweight android library that allows to you custom fast forward/rewind animation behaviours like Netflix.
 
 ## GIF
 <img src="https://github.com/ertugrulkaragoz/SuperForwardRewind/blob/master/GIF/SuperForwardRewind.gif"/>
