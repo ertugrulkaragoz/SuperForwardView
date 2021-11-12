@@ -11,9 +11,12 @@ import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import androidx.core.animation.doOnEnd
+import androidx.lifecycle.Lifecycle
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+
+typealias OnAnimationStartOrEndCallBack = (() -> Unit)?
 
 class Forward @JvmOverloads constructor(
     context: Context,
@@ -99,8 +102,8 @@ class Forward @JvmOverloads constructor(
     private var onAnimationStartListener: OnAnimationStartListener? = null
     private var onAnimationEndListener: OnAnimationEndListener? = null
 
-    var onAnimationStart: (() -> Unit)? = null
-    var onAnimationEnd: (() -> Unit)? = null
+    var onAnimationStart: OnAnimationStartOrEndCallBack = null
+    var onAnimationEnd: OnAnimationStartOrEndCallBack = null
 
     // Paints
     private val paintArc = Paint().apply {
@@ -451,6 +454,7 @@ class Forward @JvmOverloads constructor(
             x = p2.x + (p1.x - p2.x) * currentScalePercent
             y = p2.y - (p2.y - p1.y) * currentScalePercent
         }
+
         return PointF(x, y)
     }
 
@@ -469,6 +473,45 @@ class Forward @JvmOverloads constructor(
     fun setOnAnimationEndListener(onAnimationEndListener: OnAnimationEndListener) {
         this.onAnimationEndListener = onAnimationEndListener
     }
+
+    @ExperimentalCoroutinesApi
+    private fun onDebounceTextChanged(): Flow<CharSequence?> {
+        return callbackFlow {
+            val listener = object : DefaultTextWatcher() {
+                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+                    launch {
+                        send(p0)
+                    }
+                }
+            }
+            textInputEditText.addTextChangedListener(listener)
+            awaitClose { textInputEditText.removeTextChangedListener(listener) }
+        }.onStart { emit(textInputEditText.text) }
+    }
+
+
+    @FlowPreview
+    @ExperimentalCoroutinesApi
+    fun setOnDebounceTextWatcher(
+        lifecycle: Lifecycle,
+        delay: Long,
+        onDebounceAction: (CharSequence) -> Unit
+    ) {
+        debounceJob?.cancel()
+        debounceJob = onDebounceTextChanged()
+            .debounce(delay)
+            .onEach {
+                if (it != null) {
+                    onDebounceAction(it)
+                }
+            }
+            .launchIn(lifecycle.coroutineScope)
+    }
+
+    fun removeOnDebounceTextWatcher() {
+        debounceJob?.cancel()
+    }
+
 
     companion object {
         private const val ARC_MARGIN = 65f

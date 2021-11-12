@@ -99,8 +99,8 @@ class Rewind @JvmOverloads constructor(
     private var onAnimationStartListener: OnAnimationStartListener? = null
     private var onAnimationEndListener: OnAnimationEndListener? = null
 
-    var onAnimationStart: (() -> Unit)? = null
-    var onAnimationEnd: (() -> Unit)? = null
+    var onAnimationStart: OnAnimationStartOrEndCallBack = null
+    var onAnimationEnd: OnAnimationStartOrEndCallBack = null
 
     // Paints
     private val paintArc = Paint().apply {
@@ -451,6 +451,7 @@ class Rewind @JvmOverloads constructor(
             x = p2.x + (p1.x - p2.x) * currentScalePercent
             y = p2.y - (p2.y - p1.y) * currentScalePercent
         }
+
         return PointF(x, y)
     }
 

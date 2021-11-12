@@ -6,27 +6,25 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-
-
     <me.ertugrul.lib.Forward
         android:id="@+id/forward"
         android:layout_width="100dp"
         android:layout_height="50dp"
         android:layout_centerInParent="true"
-        app:f_color="#ffffff"
+        app:f_color="#000000"
         app:f_textSize="15sp"
-        app:f_arrowSize="10dp"
+        app:f_arrowSize="8dp"
         app:f_strokeWidth="3dp" />
 
     <me.ertugrul.lib.Rewind
         android:id="@+id/rewind"
         android:layout_width="100dp"
         android:layout_height="50dp"
-        app:r_color="#ffffff"
+        app:r_color="#000000"
         android:layout_below="@+id/forward"
         android:layout_centerHorizontal="true"
         app:r_textSize="15sp"
-        app:r_arrowSize="10dp"
+        app:r_arrowSize="8dp"
         app:r_strokeWidth="3dp" />
 
 </RelativeLayout>
