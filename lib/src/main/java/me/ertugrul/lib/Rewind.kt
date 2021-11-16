@@ -228,7 +228,7 @@ class Rewind @JvmOverloads constructor(
             canvas?.drawText(
                 textInput.toString(),
                 arcCenterPointF.x,
-                arcCenterPointF.y - textHeight / 2,
+                arcCenterPointF.y - textHeight / 1.5f,
                 paintText
             )
         }
@@ -236,7 +236,7 @@ class Rewind @JvmOverloads constructor(
             canvas?.drawText(
                 "-$textInput",
                 arcBorderRect.left - measureTextSize / 2 - shiftX,
-                arcCenterPointF.y - textHeight / 2,
+                arcCenterPointF.y - textHeight / 1.5f,
                 paintText
             )
         }

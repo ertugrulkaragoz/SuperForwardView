@@ -236,7 +236,7 @@ class Forward @JvmOverloads constructor(
             canvas?.drawText(
                 textInput.toString(),
                 arcCenterPointF.x,
-                arcCenterPointF.y - textHeight / 2,
+                arcCenterPointF.y - textHeight / 1.5f,
                 paintText
             )
         }
@@ -244,7 +244,7 @@ class Forward @JvmOverloads constructor(
             canvas?.drawText(
                 "+$textInput",
                 arcBorderRect.right + measureTextSize / 2 + shiftX,
-                arcCenterPointF.y - textHeight / 2,
+                arcCenterPointF.y - textHeight / 1.5f,
                 paintText
             )
         }
