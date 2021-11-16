@@ -105,6 +105,11 @@ class Forward @JvmOverloads constructor(
     var onAnimationStart: OnAnimationStartOrEndCallBack = null
     var onAnimationEnd: OnAnimationStartOrEndCallBack = null
 
+    fun setSeekForwardInSeconds(seconds:Int){
+        textInput = seconds
+        invalidate()
+    }
+
     // Paints
     private val paintArc = Paint().apply {
         isAntiAlias = true
@@ -249,102 +254,106 @@ class Forward @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP && arcBorderRect.contains(event.x, event.y)) {
 
-            onAnimationStartListener?.onAnimationStart()
-            onAnimationStart?.invoke()
+            invokeAnimation()
+        }
+        return true
+    }
 
-            // arc centered text fade animation
-            alphaAnimation(
-                OPAQUE,
-                TRANSPARENT,
-                DecelerateInterpolator(),
-                animationDuration / 2L,
-                false
+    fun invokeAnimation() {
+        onAnimationStartListener?.onAnimationStart()
+        onAnimationStart?.invoke()
+
+        // arc centered text fade animation
+        alphaAnimation(
+            OPAQUE,
+            TRANSPARENT,
+            DecelerateInterpolator(),
+            animationDuration / 2L,
+            false
+        ).doOnEnd {
+            currentOpacity = OPAQUE
+            showArcCenterText = false
+        }
+        // arc scale down animation
+        scaleAnimation(
+            START_SCALE,
+            endScale,
+            LinearInterpolator(),
+            animationDuration / 4L
+        ).doOnEnd {
+            // rotate arc animation
+            rotateAnimation(
+                0f,
+                arcRotationAngle,
+                DecelerateInterpolator(4f),
+                animationDuration / 2L
             ).doOnEnd {
-                currentOpacity = OPAQUE
-                showArcCenterText = false
-            }
-            // arc scale down animation
-            scaleAnimation(
-                START_SCALE,
-                endScale,
-                LinearInterpolator(),
-                animationDuration / 4L
-            ).doOnEnd {
-                // rotate arc animation
+                // arc scale up animation
+                scaleAnimation(
+                    endScale,
+                    START_SCALE,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L
+                )
+                // reverse rotate arc animation
                 rotateAnimation(
-                    0f,
                     arcRotationAngle,
-                    DecelerateInterpolator(4f),
-                    animationDuration / 2L
-                ).doOnEnd {
-                    // arc scale up animation
-                    scaleAnimation(
-                        endScale,
-                        START_SCALE,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L
-                    )
-                    // reverse rotate arc animation
-                    rotateAnimation(
-                        arcRotationAngle,
-                        0f,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L
-                    )
-                }
-                // circle appear animation
+                    0f,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L
+                )
+            }
+            // circle appear animation
+            alphaAnimation(
+                TRANSPARENT,
+                (OPAQUE * 6) / 10,
+                DecelerateInterpolator(),
+                animationDuration / 4L,
+                true
+            ).doOnEnd {
+                currentCircleOpacity = TRANSPARENT
+                showShiftingText = true
+                // translate the shifting text
+                translateXAnimation(
+                    arrowMargin / 2,
+                    centerX - measureTextSize + arcMargin,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L
+                )
+                // shifting text alpha animation
                 alphaAnimation(
-                    TRANSPARENT,
-                    (OPAQUE * 6) / 10,
-                    DecelerateInterpolator(),
-                    animationDuration / 4L,
-                    true
+                    OPAQUE * 3 / 10,
+                    OPAQUE,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L,
+                    false
                 ).doOnEnd {
-                    currentCircleOpacity = TRANSPARENT
-                    showShiftingText = true
-                    // translate the shifting text
-                    translateXAnimation(
-                        arrowMargin / 2,
-                        centerX - measureTextSize + arcMargin,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L
-                    )
-                    // shifting text alpha animation
+                    // shifting text fade animation
                     alphaAnimation(
-                        OPAQUE * 3 / 10,
                         OPAQUE,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L,
+                        TRANSPARENT,
+                        DecelerateInterpolator(),
+                        animationDuration.toLong() / 4L,
                         false
                     ).doOnEnd {
-                        // shifting text fade animation
+                        showArcCenterText = true
+                        showShiftingText = false
+                        shiftX = 0f
+                        // arc centered text appear animation
                         alphaAnimation(
-                            OPAQUE,
                             TRANSPARENT,
-                            DecelerateInterpolator(),
+                            OPAQUE,
+                            LinearInterpolator(),
                             animationDuration.toLong() / 4L,
                             false
                         ).doOnEnd {
-                            showArcCenterText = true
-                            showShiftingText = false
-                            shiftX = 0f
-                            // arc centered text appear animation
-                            alphaAnimation(
-                                TRANSPARENT,
-                                OPAQUE,
-                                LinearInterpolator(),
-                                animationDuration.toLong() / 4L,
-                                false
-                            ).doOnEnd {
-                                onAnimationEndListener?.onAnimationEnd()
-                                onAnimationEnd?.invoke()
-                            }
+                            onAnimationEndListener?.onAnimationEnd()
+                            onAnimationEnd?.invoke()
                         }
                     }
                 }
             }
         }
-        return true
     }
 
     private fun alphaAnimation(
@@ -473,45 +482,6 @@ class Forward @JvmOverloads constructor(
     fun setOnAnimationEndListener(onAnimationEndListener: OnAnimationEndListener) {
         this.onAnimationEndListener = onAnimationEndListener
     }
-
-    @ExperimentalCoroutinesApi
-    private fun onDebounceTextChanged(): Flow<CharSequence?> {
-        return callbackFlow {
-            val listener = object : DefaultTextWatcher() {
-                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                    launch {
-                        send(p0)
-                    }
-                }
-            }
-            textInputEditText.addTextChangedListener(listener)
-            awaitClose { textInputEditText.removeTextChangedListener(listener) }
-        }.onStart { emit(textInputEditText.text) }
-    }
-
-
-    @FlowPreview
-    @ExperimentalCoroutinesApi
-    fun setOnDebounceTextWatcher(
-        lifecycle: Lifecycle,
-        delay: Long,
-        onDebounceAction: (CharSequence) -> Unit
-    ) {
-        debounceJob?.cancel()
-        debounceJob = onDebounceTextChanged()
-            .debounce(delay)
-            .onEach {
-                if (it != null) {
-                    onDebounceAction(it)
-                }
-            }
-            .launchIn(lifecycle.coroutineScope)
-    }
-
-    fun removeOnDebounceTextWatcher() {
-        debounceJob?.cancel()
-    }
-
 
     companion object {
         private const val ARC_MARGIN = 65f
