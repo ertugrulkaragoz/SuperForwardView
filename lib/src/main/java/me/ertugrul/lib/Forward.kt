@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -38,6 +39,8 @@ class Forward @JvmOverloads constructor(
     private val centerX get() = width / 2f
 
     // Core attributes
+    private var _circleColor = Color.parseColor(CIRCLE_COLOR)
+
     private var _itemColor = Color.parseColor(COLOR)
 
     private var _itemStrokeWidth = STROKE_WIDTH
@@ -46,11 +49,17 @@ class Forward @JvmOverloads constructor(
 
     private var _sweepAngle = SWEEP_ANGLE
 
+    private var circleColor: Int
+        get() = _circleColor
+        set(value) {
+            paintCircle.color = value
+            invalidate()
+        }
+
     private var itemColor: Int
         get() = _itemColor
         set(value) {
             _itemColor = value
-            paintCircle.color = value
             paintArc.color = value
             paintText.color = value
             invalidate()
@@ -105,6 +114,11 @@ class Forward @JvmOverloads constructor(
     var onAnimationStart: OnAnimationStartOrEndCallBack = null
     var onAnimationEnd: OnAnimationStartOrEndCallBack = null
 
+    private var alphaAnimator: ValueAnimator? = null
+    private var rotateAnimator: ValueAnimator? = null
+    private var scaleAnimator: ValueAnimator? = null
+    private var translationAnimator: ValueAnimator? = null
+
     fun setSeekForwardInSeconds(seconds:Int){
         textInput = seconds
         invalidate()
@@ -122,7 +136,7 @@ class Forward @JvmOverloads constructor(
     private val paintCircle = Paint().apply {
         isAntiAlias = true
         style = Paint.Style.FILL
-        color = itemColor
+        color = circleColor
         alpha = currentCircleOpacity
     }
 
@@ -149,6 +163,8 @@ class Forward @JvmOverloads constructor(
             textInput = typedArray.getInteger(R.styleable.Forward_f_textInput, TEXT_INPUT)
             itemColor =
                 typedArray.getColor(R.styleable.Forward_f_color, Color.parseColor(COLOR))
+            circleColor =
+                typedArray.getColor(R.styleable.Forward_f_circle_color, Color.parseColor(CIRCLE_COLOR))
             itemStrokeWidth =
                 typedArray.getDimension(R.styleable.Forward_f_strokeWidth, STROKE_WIDTH)
             animationDuration = typedArray.getInteger(
@@ -253,10 +269,16 @@ class Forward @JvmOverloads constructor(
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP && arcBorderRect.contains(event.x, event.y)) {
-
             invokeAnimation()
         }
         return true
+    }
+
+    private fun updateArcCenterTextVisibility(){
+        showArcCenterText = !((alphaAnimator != null && alphaAnimator!!.isRunning)
+                || (rotateAnimator != null && rotateAnimator!!.isRunning)
+                || (scaleAnimator != null && scaleAnimator!!.isRunning)
+                || (translationAnimator != null && translationAnimator!!.isRunning))
     }
 
     fun invokeAnimation() {
@@ -336,7 +358,7 @@ class Forward @JvmOverloads constructor(
                         animationDuration.toLong() / 4L,
                         false
                     ).doOnEnd {
-                        showArcCenterText = true
+                        updateArcCenterTextVisibility()
                         showShiftingText = false
                         shiftX = 0f
                         // arc centered text appear animation
@@ -362,8 +384,8 @@ class Forward @JvmOverloads constructor(
         timeInterpolator: TimeInterpolator,
         animationDuration: Long,
         isCircle: Boolean
-    ) =
-        ValueAnimator.ofInt().apply {
+    ) : ValueAnimator {
+        alphaAnimator = ValueAnimator.ofInt().apply {
             setIntValues(start, end)
             addUpdateListener {
                 if (isCircle) {
@@ -377,14 +399,16 @@ class Forward @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return alphaAnimator!!
+    }
 
     private fun rotateAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ) : ValueAnimator {
+        rotateAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 angle = it.animatedValue as Float
@@ -394,14 +418,16 @@ class Forward @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return rotateAnimator!!
+    }
 
     private fun scaleAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ) : ValueAnimator{
+        scaleAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 currentScalePercent = animatedValue as Float
@@ -411,14 +437,16 @@ class Forward @JvmOverloads constructor(
             duration = animationDuration
             start()
         }
+        return scaleAnimator!!
+    }
 
     private fun translateXAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ) : ValueAnimator {
+        translationAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 shiftX = it.animatedValue as Float
@@ -428,6 +456,8 @@ class Forward @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return translationAnimator!!
+    }
 
     private fun drawArrowHead(canvas: Canvas?, start: PointF, end: PointF) {
         end.y = arcMargin - arrowMargin + radiusScaleSize
@@ -490,6 +520,8 @@ class Forward @JvmOverloads constructor(
         private const val ARROW_MARGIN = 50f
 
         private const val COLOR = "#000000"
+
+        private const val CIRCLE_COLOR = "#000000"
 
         private const val TEXT_SIZE = 200f
         private const val TEXT_INPUT = 10
