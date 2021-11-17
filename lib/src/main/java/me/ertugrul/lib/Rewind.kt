@@ -35,6 +35,8 @@ class Rewind @JvmOverloads constructor(
     private val centerX get() = width / 2f
 
     // Core attributes
+    private var _circleColor = Color.parseColor(CIRCLE_COLOR)
+
     private var _itemColor = Color.parseColor(COLOR)
 
     private var _itemStrokeWidth = STROKE_WIDTH
@@ -43,11 +45,17 @@ class Rewind @JvmOverloads constructor(
 
     private var _sweepAngle = SWEEP_ANGLE
 
+    private var circleColor: Int
+        get() = _circleColor
+        set(value) {
+            paintCircle.color = value
+            invalidate()
+        }
+
     private var itemColor: Int
         get() = _itemColor
         set(value) {
             _itemColor = value
-            paintCircle.color = value
             paintArc.color = value
             paintText.color = value
             invalidate()
@@ -102,6 +110,11 @@ class Rewind @JvmOverloads constructor(
     var onAnimationStart: OnAnimationStartOrEndCallBack = null
     var onAnimationEnd: OnAnimationStartOrEndCallBack = null
 
+    private var alphaAnimator: ValueAnimator? = null
+    private var rotateAnimator: ValueAnimator? = null
+    private var scaleAnimator: ValueAnimator? = null
+    private var translationAnimator: ValueAnimator? = null
+
     // Paints
     private val paintArc = Paint().apply {
         isAntiAlias = true
@@ -114,7 +127,7 @@ class Rewind @JvmOverloads constructor(
     private val paintCircle = Paint().apply {
         isAntiAlias = true
         style = Paint.Style.FILL
-        color = itemColor
+        color = circleColor
         alpha = currentCircleOpacity
     }
 
@@ -141,6 +154,11 @@ class Rewind @JvmOverloads constructor(
             textInput = typedArray.getInteger(R.styleable.Rewind_r_textInput, TEXT_INPUT)
             itemColor =
                 typedArray.getColor(R.styleable.Rewind_r_color, Color.parseColor(COLOR))
+            circleColor =
+                typedArray.getColor(
+                    R.styleable.Rewind_r_circle_color,
+                    Color.parseColor(CIRCLE_COLOR)
+                )
             itemStrokeWidth =
                 typedArray.getDimension(R.styleable.Rewind_r_strokeWidth, STROKE_WIDTH)
             animationDuration = typedArray.getInteger(
@@ -251,7 +269,14 @@ class Rewind @JvmOverloads constructor(
         return true
     }
 
-    fun setSeekBackwardsInSeconds(seconds:Int){
+    private fun updateArcCenterTextVisibility() {
+        showArcCenterText = !((alphaAnimator != null && alphaAnimator!!.isRunning)
+                || (rotateAnimator != null && rotateAnimator!!.isRunning)
+                || (scaleAnimator != null && scaleAnimator!!.isRunning)
+                || (translationAnimator != null && translationAnimator!!.isRunning))
+    }
+
+    fun setSeekBackwardsInSeconds(seconds: Int) {
         textInput = seconds
         invalidate()
     }
@@ -333,7 +358,7 @@ class Rewind @JvmOverloads constructor(
                         animationDuration.toLong() / 4L,
                         false
                     ).doOnEnd {
-                        showArcCenterText = true
+                        updateArcCenterTextVisibility()
                         showShiftingText = false
                         shiftX = 0f
                         // arc centered text appear animation
@@ -359,8 +384,8 @@ class Rewind @JvmOverloads constructor(
         timeInterpolator: TimeInterpolator,
         animationDuration: Long,
         isCircle: Boolean
-    ) =
-        ValueAnimator.ofInt().apply {
+    ): ValueAnimator {
+        alphaAnimator = ValueAnimator.ofInt().apply {
             setIntValues(start, end)
             addUpdateListener {
                 if (isCircle) {
@@ -374,14 +399,16 @@ class Rewind @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return alphaAnimator!!
+    }
 
     private fun rotateAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ): ValueAnimator {
+        rotateAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 angle = (it.animatedValue as Float) * -1
@@ -391,14 +418,16 @@ class Rewind @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return rotateAnimator!!
+    }
 
     private fun scaleAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ): ValueAnimator {
+        scaleAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 currentScalePercent = animatedValue as Float
@@ -408,23 +437,28 @@ class Rewind @JvmOverloads constructor(
             duration = animationDuration
             start()
         }
+        return scaleAnimator!!
+    }
 
     private fun translateXAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
-            setFloatValues(start, end)
-            addUpdateListener {
-                shiftX = it.animatedValue as Float
-                invalidate()
+    ): ValueAnimator {
+        translationAnimator =
+            ValueAnimator.ofFloat().apply {
+                setFloatValues(start, end)
+                addUpdateListener {
+                    shiftX = it.animatedValue as Float
+                    invalidate()
+                }
+                duration = animationDuration
+                interpolator = timeInterpolator
+                start()
             }
-            duration = animationDuration
-            interpolator = timeInterpolator
-            start()
-        }
+        return translationAnimator!!
+    }
 
     private fun drawArrowHead(canvas: Canvas?, start: PointF, end: PointF) {
         end.y = arcMargin - arrowMargin + radiusScaleSize
@@ -487,6 +521,8 @@ class Rewind @JvmOverloads constructor(
         private const val ARROW_MARGIN = 50f
 
         private const val COLOR = "#000000"
+
+        private const val CIRCLE_COLOR = "#000000"
 
         private const val TEXT_SIZE = 200f
         private const val TEXT_INPUT = 10

@@ -3,6 +3,7 @@
     <declare-styleable name="Forward">
         <attr name="f_textSize" format="dimension" />
         <attr name="f_color" format="color" />
+        <attr name="f_circle_color" format="color" />
         <attr name="f_strokeWidth" format="dimension" />
         <attr name="f_textInput" format="integer" />
         <attr name="f_animationDuration" format="integer" />
@@ -15,6 +16,7 @@
     <declare-styleable name="Rewind">
         <attr name="r_textSize" format="dimension" />
         <attr name="r_color" format="color" />
+        <attr name="r_circle_color" format="color" />
         <attr name="r_strokeWidth" format="dimension" />
         <attr name="r_textInput" format="integer" />
         <attr name="r_animationDuration" format="integer" />
