@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -38,6 +39,8 @@ class Forward @JvmOverloads constructor(
     private val centerX get() = width / 2f
 
     // Core attributes
+    private var _circleColor = Color.parseColor(CIRCLE_COLOR)
+
     private var _itemColor = Color.parseColor(COLOR)
 
     private var _itemStrokeWidth = STROKE_WIDTH
@@ -46,11 +49,17 @@ class Forward @JvmOverloads constructor(
 
     private var _sweepAngle = SWEEP_ANGLE
 
+    private var circleColor: Int
+        get() = _circleColor
+        set(value) {
+            paintCircle.color = value
+            invalidate()
+        }
+
     private var itemColor: Int
         get() = _itemColor
         set(value) {
             _itemColor = value
-            paintCircle.color = value
             paintArc.color = value
             paintText.color = value
             invalidate()
@@ -105,6 +114,16 @@ class Forward @JvmOverloads constructor(
     var onAnimationStart: OnAnimationStartOrEndCallBack = null
     var onAnimationEnd: OnAnimationStartOrEndCallBack = null
 
+    private var alphaAnimator: ValueAnimator? = null
+    private var rotateAnimator: ValueAnimator? = null
+    private var scaleAnimator: ValueAnimator? = null
+    private var translationAnimator: ValueAnimator? = null
+
+    fun setSeekForwardInSeconds(seconds:Int){
+        textInput = seconds
+        invalidate()
+    }
+
     // Paints
     private val paintArc = Paint().apply {
         isAntiAlias = true
@@ -117,7 +136,7 @@ class Forward @JvmOverloads constructor(
     private val paintCircle = Paint().apply {
         isAntiAlias = true
         style = Paint.Style.FILL
-        color = itemColor
+        color = circleColor
         alpha = currentCircleOpacity
     }
 
@@ -144,6 +163,8 @@ class Forward @JvmOverloads constructor(
             textInput = typedArray.getInteger(R.styleable.Forward_f_textInput, TEXT_INPUT)
             itemColor =
                 typedArray.getColor(R.styleable.Forward_f_color, Color.parseColor(COLOR))
+            circleColor =
+                typedArray.getColor(R.styleable.Forward_f_circle_color, Color.parseColor(CIRCLE_COLOR))
             itemStrokeWidth =
                 typedArray.getDimension(R.styleable.Forward_f_strokeWidth, STROKE_WIDTH)
             animationDuration = typedArray.getInteger(
@@ -231,7 +252,7 @@ class Forward @JvmOverloads constructor(
             canvas?.drawText(
                 textInput.toString(),
                 arcCenterPointF.x,
-                arcCenterPointF.y - textHeight / 2,
+                arcCenterPointF.y - textHeight / 1.5f,
                 paintText
             )
         }
@@ -239,7 +260,7 @@ class Forward @JvmOverloads constructor(
             canvas?.drawText(
                 "+$textInput",
                 arcBorderRect.right + measureTextSize / 2 + shiftX,
-                arcCenterPointF.y - textHeight / 2,
+                arcCenterPointF.y - textHeight / 1.5f,
                 paintText
             )
         }
@@ -248,103 +269,113 @@ class Forward @JvmOverloads constructor(
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP && arcBorderRect.contains(event.x, event.y)) {
+            invokeAnimation()
+        }
+        return true
+    }
 
-            onAnimationStartListener?.onAnimationStart()
-            onAnimationStart?.invoke()
+    private fun updateArcCenterTextVisibility(){
+        showArcCenterText = !((alphaAnimator != null && alphaAnimator!!.isRunning)
+                || (rotateAnimator != null && rotateAnimator!!.isRunning)
+                || (scaleAnimator != null && scaleAnimator!!.isRunning)
+                || (translationAnimator != null && translationAnimator!!.isRunning))
+    }
 
-            // arc centered text fade animation
-            alphaAnimation(
-                OPAQUE,
-                TRANSPARENT,
-                DecelerateInterpolator(),
-                animationDuration / 2L,
-                false
+    fun invokeAnimation() {
+        onAnimationStartListener?.onAnimationStart()
+        onAnimationStart?.invoke()
+
+        // arc centered text fade animation
+        alphaAnimation(
+            OPAQUE,
+            TRANSPARENT,
+            DecelerateInterpolator(),
+            animationDuration / 2L,
+            false
+        ).doOnEnd {
+            currentOpacity = OPAQUE
+            showArcCenterText = false
+        }
+        // arc scale down animation
+        scaleAnimation(
+            START_SCALE,
+            endScale,
+            LinearInterpolator(),
+            animationDuration / 4L
+        ).doOnEnd {
+            // rotate arc animation
+            rotateAnimation(
+                0f,
+                arcRotationAngle,
+                DecelerateInterpolator(4f),
+                animationDuration / 2L
             ).doOnEnd {
-                currentOpacity = OPAQUE
-                showArcCenterText = false
-            }
-            // arc scale down animation
-            scaleAnimation(
-                START_SCALE,
-                endScale,
-                LinearInterpolator(),
-                animationDuration / 4L
-            ).doOnEnd {
-                // rotate arc animation
+                // arc scale up animation
+                scaleAnimation(
+                    endScale,
+                    START_SCALE,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L
+                )
+                // reverse rotate arc animation
                 rotateAnimation(
-                    0f,
                     arcRotationAngle,
-                    DecelerateInterpolator(4f),
-                    animationDuration / 2L
-                ).doOnEnd {
-                    // arc scale up animation
-                    scaleAnimation(
-                        endScale,
-                        START_SCALE,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L
-                    )
-                    // reverse rotate arc animation
-                    rotateAnimation(
-                        arcRotationAngle,
-                        0f,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L
-                    )
-                }
-                // circle appear animation
+                    0f,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L
+                )
+            }
+            // circle appear animation
+            alphaAnimation(
+                TRANSPARENT,
+                (OPAQUE * 6) / 10,
+                DecelerateInterpolator(),
+                animationDuration / 4L,
+                true
+            ).doOnEnd {
+                currentCircleOpacity = TRANSPARENT
+                showShiftingText = true
+                // translate the shifting text
+                translateXAnimation(
+                    arrowMargin / 2,
+                    centerX - measureTextSize + arcMargin,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L
+                )
+                // shifting text alpha animation
                 alphaAnimation(
-                    TRANSPARENT,
-                    (OPAQUE * 6) / 10,
-                    DecelerateInterpolator(),
-                    animationDuration / 4L,
-                    true
+                    OPAQUE * 3 / 10,
+                    OPAQUE,
+                    DecelerateInterpolator(2f),
+                    (animationDuration.toLong() * 17L) / 10L,
+                    false
                 ).doOnEnd {
-                    currentCircleOpacity = TRANSPARENT
-                    showShiftingText = true
-                    // translate the shifting text
-                    translateXAnimation(
-                        arrowMargin / 2,
-                        centerX - measureTextSize + arcMargin,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L
-                    )
-                    // shifting text alpha animation
+                    // shifting text fade animation
                     alphaAnimation(
-                        OPAQUE * 3 / 10,
                         OPAQUE,
-                        DecelerateInterpolator(2f),
-                        (animationDuration.toLong() * 17L) / 10L,
+                        TRANSPARENT,
+                        DecelerateInterpolator(),
+                        animationDuration.toLong() / 4L,
                         false
                     ).doOnEnd {
-                        // shifting text fade animation
+                        updateArcCenterTextVisibility()
+                        showShiftingText = false
+                        shiftX = 0f
+                        // arc centered text appear animation
                         alphaAnimation(
-                            OPAQUE,
                             TRANSPARENT,
-                            DecelerateInterpolator(),
+                            OPAQUE,
+                            LinearInterpolator(),
                             animationDuration.toLong() / 4L,
                             false
                         ).doOnEnd {
-                            showArcCenterText = true
-                            showShiftingText = false
-                            shiftX = 0f
-                            // arc centered text appear animation
-                            alphaAnimation(
-                                TRANSPARENT,
-                                OPAQUE,
-                                LinearInterpolator(),
-                                animationDuration.toLong() / 4L,
-                                false
-                            ).doOnEnd {
-                                onAnimationEndListener?.onAnimationEnd()
-                                onAnimationEnd?.invoke()
-                            }
+                            onAnimationEndListener?.onAnimationEnd()
+                            onAnimationEnd?.invoke()
                         }
                     }
                 }
             }
         }
-        return true
     }
 
     private fun alphaAnimation(
@@ -353,8 +384,8 @@ class Forward @JvmOverloads constructor(
         timeInterpolator: TimeInterpolator,
         animationDuration: Long,
         isCircle: Boolean
-    ) =
-        ValueAnimator.ofInt().apply {
+    ) : ValueAnimator {
+        alphaAnimator = ValueAnimator.ofInt().apply {
             setIntValues(start, end)
             addUpdateListener {
                 if (isCircle) {
@@ -368,14 +399,16 @@ class Forward @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return alphaAnimator!!
+    }
 
     private fun rotateAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ) : ValueAnimator {
+        rotateAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 angle = it.animatedValue as Float
@@ -385,14 +418,16 @@ class Forward @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return rotateAnimator!!
+    }
 
     private fun scaleAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ) : ValueAnimator{
+        scaleAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 currentScalePercent = animatedValue as Float
@@ -402,14 +437,16 @@ class Forward @JvmOverloads constructor(
             duration = animationDuration
             start()
         }
+        return scaleAnimator!!
+    }
 
     private fun translateXAnimation(
         start: Float,
         end: Float,
         timeInterpolator: TimeInterpolator,
         animationDuration: Long
-    ) =
-        ValueAnimator.ofFloat().apply {
+    ) : ValueAnimator {
+        translationAnimator = ValueAnimator.ofFloat().apply {
             setFloatValues(start, end)
             addUpdateListener {
                 shiftX = it.animatedValue as Float
@@ -419,6 +456,8 @@ class Forward @JvmOverloads constructor(
             interpolator = timeInterpolator
             start()
         }
+        return translationAnimator!!
+    }
 
     private fun drawArrowHead(canvas: Canvas?, start: PointF, end: PointF) {
         end.y = arcMargin - arrowMargin + radiusScaleSize
@@ -474,45 +513,6 @@ class Forward @JvmOverloads constructor(
         this.onAnimationEndListener = onAnimationEndListener
     }
 
-    @ExperimentalCoroutinesApi
-    private fun onDebounceTextChanged(): Flow<CharSequence?> {
-        return callbackFlow {
-            val listener = object : DefaultTextWatcher() {
-                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                    launch {
-                        send(p0)
-                    }
-                }
-            }
-            textInputEditText.addTextChangedListener(listener)
-            awaitClose { textInputEditText.removeTextChangedListener(listener) }
-        }.onStart { emit(textInputEditText.text) }
-    }
-
-
-    @FlowPreview
-    @ExperimentalCoroutinesApi
-    fun setOnDebounceTextWatcher(
-        lifecycle: Lifecycle,
-        delay: Long,
-        onDebounceAction: (CharSequence) -> Unit
-    ) {
-        debounceJob?.cancel()
-        debounceJob = onDebounceTextChanged()
-            .debounce(delay)
-            .onEach {
-                if (it != null) {
-                    onDebounceAction(it)
-                }
-            }
-            .launchIn(lifecycle.coroutineScope)
-    }
-
-    fun removeOnDebounceTextWatcher() {
-        debounceJob?.cancel()
-    }
-
-
     companion object {
         private const val ARC_MARGIN = 65f
         private const val ARC_ROTATION_ANGLE = 70f
@@ -520,6 +520,8 @@ class Forward @JvmOverloads constructor(
         private const val ARROW_MARGIN = 50f
 
         private const val COLOR = "#000000"
+
+        private const val CIRCLE_COLOR = "#000000"
 
         private const val TEXT_SIZE = 200f
         private const val TEXT_INPUT = 10
