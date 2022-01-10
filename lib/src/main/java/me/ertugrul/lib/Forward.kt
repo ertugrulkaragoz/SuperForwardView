@@ -4,14 +4,17 @@ import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.*
+import android.graphics.Paint
+import android.graphics.PointF
+import android.graphics.Color
+import android.graphics.RectF
+import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import androidx.core.animation.doOnEnd
-import androidx.lifecycle.Lifecycle
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -133,6 +136,10 @@ class Forward @JvmOverloads constructor(
     }
 
     init {
+        obtainStyledAttributes(attrs, defStyleAttr)
+    }
+
+    private fun obtainStyledAttributes(attrs: AttributeSet?, defStyleAttr: Int) {
         val typedArray = context.obtainStyledAttributes(
             attrs,
             R.styleable.Forward,
@@ -140,26 +147,26 @@ class Forward @JvmOverloads constructor(
             0
         )
         try {
-            itemTextSize = typedArray.getDimension(R.styleable.Forward_f_textSize, TEXT_SIZE)
-            textInput = typedArray.getInteger(R.styleable.Forward_f_textInput, TEXT_INPUT)
-            itemColor =
-                typedArray.getColor(R.styleable.Forward_f_color, Color.parseColor(COLOR))
-            itemStrokeWidth =
-                typedArray.getDimension(R.styleable.Forward_f_strokeWidth, STROKE_WIDTH)
-            animationDuration = typedArray.getInteger(
-                R.styleable.Forward_f_animationDuration,
-                ANIMATION_DURATION
-            )
-            arcRotationAngle = typedArray.getFloat(
-                R.styleable.Forward_f_arcRotationAngle,
-                ARC_ROTATION_ANGLE
-            )
-            arcMargin = typedArray.getDimension(R.styleable.Forward_f_arrowSize, ARC_MARGIN)
-            sweepAngle = typedArray.getFloat(R.styleable.Forward_f_sweepAngle, SWEEP_ANGLE)
-            endScale = typedArray.getInteger(
-                R.styleable.Forward_f_scalePercent,
-                SCALE_PERCENT
-            ).toFloat() / 100
+            with(typedArray) {
+                itemTextSize = getDimension(R.styleable.Forward_f_textSize, TEXT_SIZE)
+                textInput = getInteger(R.styleable.Forward_f_textInput, TEXT_INPUT)
+                itemColor = getColor(R.styleable.Forward_f_color, Color.parseColor(COLOR))
+                itemStrokeWidth = getDimension(R.styleable.Forward_f_strokeWidth, STROKE_WIDTH)
+                animationDuration = getInteger(
+                    R.styleable.Forward_f_animationDuration,
+                    ANIMATION_DURATION
+                )
+                arcRotationAngle = getFloat(
+                    R.styleable.Forward_f_arcRotationAngle,
+                    ARC_ROTATION_ANGLE
+                )
+                arcMargin = getDimension(R.styleable.Forward_f_arrowSize, ARC_MARGIN)
+                sweepAngle = getFloat(R.styleable.Forward_f_sweepAngle, SWEEP_ANGLE)
+                endScale = getInteger(
+                    R.styleable.Forward_f_scalePercent,
+                    SCALE_PERCENT
+                ).toFloat() / 100
+            }
 
             arrowMargin = arcMargin * 10 / 13
             animationDuration = animationDuration * 10 / 27
@@ -473,45 +480,6 @@ class Forward @JvmOverloads constructor(
     fun setOnAnimationEndListener(onAnimationEndListener: OnAnimationEndListener) {
         this.onAnimationEndListener = onAnimationEndListener
     }
-
-    @ExperimentalCoroutinesApi
-    private fun onDebounceTextChanged(): Flow<CharSequence?> {
-        return callbackFlow {
-            val listener = object : DefaultTextWatcher() {
-                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                    launch {
-                        send(p0)
-                    }
-                }
-            }
-            textInputEditText.addTextChangedListener(listener)
-            awaitClose { textInputEditText.removeTextChangedListener(listener) }
-        }.onStart { emit(textInputEditText.text) }
-    }
-
-
-    @FlowPreview
-    @ExperimentalCoroutinesApi
-    fun setOnDebounceTextWatcher(
-        lifecycle: Lifecycle,
-        delay: Long,
-        onDebounceAction: (CharSequence) -> Unit
-    ) {
-        debounceJob?.cancel()
-        debounceJob = onDebounceTextChanged()
-            .debounce(delay)
-            .onEach {
-                if (it != null) {
-                    onDebounceAction(it)
-                }
-            }
-            .launchIn(lifecycle.coroutineScope)
-    }
-
-    fun removeOnDebounceTextWatcher() {
-        debounceJob?.cancel()
-    }
-
 
     companion object {
         private const val ARC_MARGIN = 65f

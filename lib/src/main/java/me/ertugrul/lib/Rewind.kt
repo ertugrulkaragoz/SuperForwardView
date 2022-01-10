@@ -4,7 +4,11 @@ import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.*
+import android.graphics.Paint
+import android.graphics.PointF
+import android.graphics.Color
+import android.graphics.RectF
+import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -130,6 +134,10 @@ class Rewind @JvmOverloads constructor(
     }
 
     init {
+        obtainStyledAttributes(attrs, defStyleAttr)
+    }
+
+    private fun obtainStyledAttributes(attrs: AttributeSet?, defStyleAttr: Int) {
         val typedArray = context.obtainStyledAttributes(
             attrs,
             R.styleable.Rewind,
@@ -137,26 +145,26 @@ class Rewind @JvmOverloads constructor(
             0
         )
         try {
-            itemTextSize = typedArray.getDimension(R.styleable.Rewind_r_textSize, TEXT_SIZE)
-            textInput = typedArray.getInteger(R.styleable.Rewind_r_textInput, TEXT_INPUT)
-            itemColor =
-                typedArray.getColor(R.styleable.Rewind_r_color, Color.parseColor(COLOR))
-            itemStrokeWidth =
-                typedArray.getDimension(R.styleable.Rewind_r_strokeWidth, STROKE_WIDTH)
-            animationDuration = typedArray.getInteger(
-                R.styleable.Rewind_r_animationDuration,
-                ANIMATION_DURATION
-            )
-            arcRotationAngle = typedArray.getFloat(
-                R.styleable.Rewind_r_arcRotationAngle,
-                ARC_ROTATION_ANGLE
-            )
-            arcMargin = typedArray.getDimension(R.styleable.Rewind_r_arrowSize, ARC_MARGIN)
-            sweepAngle = typedArray.getFloat(R.styleable.Rewind_r_sweepAngle, SWEEP_ANGLE)
-            endScale = typedArray.getInteger(
-                R.styleable.Rewind_r_scalePercent,
-                SCALE_PERCENT
-            ).toFloat() / 100
+            with(typedArray) {
+                itemTextSize = getDimension(R.styleable.Rewind_r_textSize, TEXT_SIZE)
+                textInput = getInteger(R.styleable.Rewind_r_textInput, TEXT_INPUT)
+                itemColor = getColor(R.styleable.Rewind_r_color, Color.parseColor(COLOR))
+                itemStrokeWidth = getDimension(R.styleable.Rewind_r_strokeWidth, STROKE_WIDTH)
+                animationDuration = getInteger(
+                    R.styleable.Rewind_r_animationDuration,
+                    ANIMATION_DURATION
+                )
+                arcRotationAngle = getFloat(
+                    R.styleable.Rewind_r_arcRotationAngle,
+                    ARC_ROTATION_ANGLE
+                )
+                arcMargin = getDimension(R.styleable.Rewind_r_arrowSize, ARC_MARGIN)
+                sweepAngle = getFloat(R.styleable.Rewind_r_sweepAngle, SWEEP_ANGLE)
+                endScale = getInteger(
+                    R.styleable.Rewind_r_scalePercent,
+                    SCALE_PERCENT
+                ).toFloat() / 100
+            }
 
             arrowMargin = arcMargin * 10 / 13
             animationDuration = animationDuration * 10 / 27
